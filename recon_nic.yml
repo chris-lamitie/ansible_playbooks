@@ -1,4 +1,5 @@
 ---
+# This playbook will return interface, routing and hardware information (if not a guest) about a system
 - name: Recon NIC playbook
   hosts: all
   gather_facts: true
@@ -15,6 +16,7 @@
           - "  Type: {{ hostvars[inventory_hostname]['ansible_' + item].type | default('Unknown') }}"
           - "{% if hostvars[inventory_hostname]['ansible_' + item].type == 'bonding' %}  Slaves: {{ hostvars[inventory_hostname]['ansible_' + item].slaves | default('None') }}{% endif %}"
       loop: "{{ ansible_interfaces }}"
+      tags: interfaces
 
     - name: Run route -n
       ansible.builtin.command:
@@ -27,26 +29,28 @@
         msg:
           - "Routing Table:"
           - "{{ routing_table.stdout_lines }}"
+      tags: routes
 
     - name: Gather package facts
       ansible.builtin.package_facts:
         manager: auto
       when:
-        - ansible_virtualization_type == "kvm"
+        - ansible_virtualization_role != "guest"
 
     - name: Run lspci | grep -i ethernet
       ansible.builtin.shell:
         cmd: set -o pipefail && lspci | grep -i ethernet
       register: lspci_output
       when:
-        - ansible_virtualization_type == "kvm"
+        - ansible_virtualization_role != "guest"
       changed_when: false
 
     - name: Debug lspci_output var
       ansible.builtin.debug:
         var: lspci_output.stdout_lines
       when:
-        - ansible_virtualization_type == "kvm"
+        - ansible_virtualization_role != "guest"
+      tags: hardware
 
     - name: Run sfkey report
       ansible.builtin.command:
@@ -55,7 +59,7 @@
       failed_when: false
       become: true
       when:
-        - ansible_virtualization_type == "kvm"
+        - ansible_virtualization_role != "guest"
         - "'onload' in ansible_facts.packages"
       register: sfkey_out
 
@@ -63,7 +67,8 @@
       ansible.builtin.debug:
         msg: "{{ sfkey_out.stdout_lines | select('search', '^  Product name') | list }}"
       when:
-        - ansible_virtualization_type == "kvm"
+        - ansible_virtualization_role != "guest"
         - sfkey_out.changed
         - sfkey_out.stdout
+      tags: hardware
 ...
