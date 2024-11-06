@@ -1,5 +1,9 @@
 ---
 # This playbook will return interface, routing and hardware information (if not a guest) about a system
+# Tags: 
+#  "interfaces", shows only interface info
+#  "routes", shows routing table
+#  "hardware", shows nic hardware info (if not a virtual guest)
 - name: Recon NIC playbook
   hosts: all
   gather_facts: true
