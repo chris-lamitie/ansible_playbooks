@@ -1,0 +1,66 @@
+---
+- name: recon NIC playbook
+  hosts: all
+  gather_facts: true
+
+  tasks:
+    - name: Display interface information
+      ansible.builtin.debug:
+        msg:
+          - "Interface {{ item }}:"
+          - "  Active?: {{ hostvars[inventory_hostname]['ansible_' + item].active | default('false') }}"
+          - "  IPv4 Address: {{ hostvars[inventory_hostname]['ansible_' + item].ipv4.address | default('N/A') }}"
+          - "  MAC Address: {{ hostvars[inventory_hostname]['ansible_' + item].macaddress | default('N/A') }}"
+          - "  Speed: {{ hostvars[inventory_hostname]['ansible_' + item].speed | default('Unknown') }}"
+          - "  Type: {{ hostvars[inventory_hostname]['ansible_' + item].type | default('Unknown') }}"
+          - "{% if hostvars[inventory_hostname]['ansible_' + item].type == 'bonding' %}  Slaves: {{ hostvars[inventory_hostname]['ansible_' + item].slaves | default('None') }}{% endif %}"
+      loop: "{{ ansible_interfaces }}"
+
+    - name: Run route -n
+      ansible.builtin.command:
+        cmd: route -n
+      register: routing_table
+
+    - name: Output of route -n command
+      ansible.builtin.debug:
+        msg:
+          - "Routing Table:"
+          - "{{ routing_table.stdout_lines }}"
+
+    - name: Gather package facts
+      ansible.builtin.package_facts:
+        manager: auto
+      when:
+        - ansible_virtualization_type == "kvm"
+
+    - name: lspci | grep -i ethernet
+      ansible.builtin.shell:
+        cmd: lspci | grep -i ethernet
+      register: lspci_output
+      when:
+        - ansible_virtualization_type == "kvm"
+
+    - name: Debug lspci_output var
+      ansible.builtin.debug:
+        var: lspci_output.stdout_lines
+      when: 
+        - ansible_virtualization_type == "kvm"
+
+    - name: sfkey report
+      ansible.builtin.command:
+        cmd: sfkey --all --report
+      failed_when: false
+      become: true
+      when: 
+      - ansible_virtualization_type == "kvm"
+      - "'onload' in ansible_facts.packages"
+      register: sfkey_out
+
+    - name: Sfkey report
+      ansible.builtin.debug:
+        msg: "{{ sfkey_out.stdout_lines | select('search', '^  Product name') | list }}"
+      when:
+        - ansible_virtualization_type == "kvm"
+        - sfkey_out.changed
+        - sfkey_out.stdout
+...
