@@ -27,6 +27,7 @@
         cmd: route -n
       register: routing_table
       changed_when: false
+      tags: routes
 
     - name: Output of route -n command
       ansible.builtin.debug:
@@ -40,6 +41,7 @@
         manager: auto
       when:
         - ansible_virtualization_role != "guest"
+      tags: hardware
 
     - name: Run lspci | grep -i ethernet
       ansible.builtin.shell:
@@ -48,6 +50,7 @@
       when:
         - ansible_virtualization_role != "guest"
       changed_when: false
+      tags: hardware
 
     - name: Debug lspci_output var
       ansible.builtin.debug:
@@ -66,13 +69,13 @@
         - ansible_virtualization_role != "guest"
         - "'onload' in ansible_facts.packages"
       register: sfkey_out
+      tags: hardware
 
     - name: Sfkey report
       ansible.builtin.debug:
         msg: "{{ sfkey_out.stdout_lines | select('search', '^  Product name') | list }}"
       when:
         - ansible_virtualization_role != "guest"
-        - sfkey_out.changed
         - sfkey_out.stdout
       tags: hardware
 ...
