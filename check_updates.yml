@@ -1,0 +1,61 @@
+---
+# -------------------------------------------------------------------
+# This playbook will check for updates with yum and email the results
+# This requires the Ansible Galaxy Community module. You can install it with this command:
+# 'ansible-galaxy collection install community.general'
+# -------------------------------------------------------------------
+- name: check for updates
+  hosts: all
+  gather_facts: true
+  # vars:
+  #   send_email_to: user@example.com
+  vars_prompt:
+    - name: send_email_to
+      prompt: Who should receive emails about patches?
+      default: user@example.com
+      private: no
+
+  tasks:
+    - name: Check for updates and set pending_updates per host
+      block:
+        - name: check for updates (yum)
+          ansible.builtin.yum:
+            list: updates
+            update_cache: true
+          register: update_check_yum
+          when: ansible_distribution_major_version <= '7'
+
+        - name: check for updates (dnf)
+          ansible.builtin.dnf:
+            list: updates
+            update_cache: true
+          register: update_check_dnf
+          when: ansible_distribution_major_version >= '8'
+
+        - name: Determine pending updates
+          ansible.builtin.set_fact:
+            pending_updates: |
+              {% if ansible_distribution_major_version | int <= 7 %}
+              {{ update_check_yum }}
+              {% elif ansible_distribution_major_version | int >= 8 %}
+              {{ update_check_dnf }}
+              {% else %}
+              []
+              {% endif %}
+
+    - name: Send email to {{ send_email_to }}
+      community.general.mail:
+        to: '{{ send_email_to }}'
+        from: 'ansible@{{ ansible_fqdn }}'
+        subject: 'Patch report for {{ ansible_hostname }} ({{ ansible_default_ipv4.address }}).'
+        body: |
+          Patches needed for {{ ansible_hostname }} ({{ ansible_default_ipv4.address }}):
+          {% for line in pending_updates | json_query(my_query) %}
+          {{ line }}
+          {% endfor %}
+        charset: utf8
+      delegate_to: localhost
+      vars:
+        my_query: "results[].{name: name, version: version, release: release, repo: repo}"
+      when: pending_updates.results
+...
