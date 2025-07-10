@@ -1,0 +1,28 @@
+---
+# Simple playbook to update hosts, reboot flag true/false.
+# if you want the host(s) to reboot, add -e "reboot_required=true" to your ansible-playbook command
+- name: Reboot hosts
+  hosts: all
+  gather_facts: false
+
+  vars_prompt:
+    - name: confirm_reboot
+      prompt: "Are you sure you want to reboot host(s)? (yes/no)"
+      private: no
+
+  tasks:
+    - name: Fail if user does not confirm reboot
+      ansible.builtin.fail:
+        msg: "Reboot canceled by the user."
+      when: confirm_reboot != 'yes'
+
+    - name: Reboot hosts
+      ansible.builtin.reboot:
+        msg: "Reboot initiated by Ansible"
+        pre_reboot_delay: 0
+        post_reboot_delay: 30
+        reboot_timeout: 600
+        test_command: whoami
+      when: confirm_reboot == 'yes'
+      become: true
+...
