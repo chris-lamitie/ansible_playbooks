@@ -1,0 +1,20 @@
+---
+- name: Find a package
+  hosts: all
+
+  vars_prompt:
+    - name: package_input
+      prompt: "Enter the name of the package you want to find (regex chars like '.*' are O.K.) "
+      private: false
+
+  tasks:
+    - name: Gather package facts
+      ansible.builtin.package_facts:
+        manager: auto
+
+    - name: Check for matching packages with version
+      ansible.builtin.debug:
+        msg: "{{ item.key }} version {{ item.value[0].version }} is installed"
+      when: "ansible_facts.packages | dict2items | selectattr('key', 'match', package_input) | list | length > 0"
+      loop: "{{ ansible_facts.packages | dict2items | selectattr('key', 'match', package_input) | list }}"
+...
