@@ -1,0 +1,47 @@
+---
+- name: Recon host playbook
+  hosts: all
+  gather_facts: true
+  become: true
+
+  vars:
+    flat_info: false
+
+  tasks:
+    - name: Display host information
+      ansible.builtin.debug:
+        msg:
+          - "Hostname: {{ ansible_hostname }}"
+          - "Distribution: {{ ansible_distribution }}"
+          - "Distribution Release: {{ ansible_distribution_release }}"
+          - "Distribution Version: {{ ansible_distribution_version }}"
+          - "Python Version: {{ ansible_python_version }}"
+          - "Timezone: {{ ansible_date_time.tz }}({{ ansible_date_time.tz_offset }})"
+          - "Kernel: {{ ansible_kernel }}"
+          - "Memory Installed: {{ (ansible_memtotal_mb / 1024) | round(1) }}GB"
+          - "Memory Swapfile: {{ (ansible_swaptotal_mb / 1024) | round(1) }}GB"
+          - "Number of processors: {{ ansible_processor_count }}"
+          - "Cores per processor: {{ ansible_processor_cores }}"
+          - "Processor thread per core: {{ ansible_processor_threads_per_core }}"
+          - "Total processor cores: {{ ansible_processor_vcpus }}"
+          - "Processor model: {{ ansible_processor[2] }}"
+          - "{{ 'Vendor: ' + ansible_virtualization_type if ansible_virtualization_role == 'guest' else 'Vendor: ' + ansible_chassis_vendor }}"
+          - "{{ 'Product: ' + ansible_virtualization_role if ansible_virtualization_role == 'guest' else 'Product: ' + ansible_product_name }}"
+          - "Chassis Serial: {{ ansible_chassis_serial }}"
+          - "Bios Version: {{ ansible_bios_version }}"
+          - "processor.max_cstate: {{ ansible_cmdline['processor.max_cstate'] | default('not set') }}"
+          - "nohz_full: {{ ansible_cmdline['nohz_full'] | default('not set') }}"
+          - "isolcpus: {{ ansible_cmdline['isolcpus'] | default('not set') }}"
+      when: not flat_info
+
+    - name: Flat Header row
+      ansible.builtin.debug:
+        msg:
+          - "Hostname,Distribution,Distribution Release,Distribution Version,Python Version,Timezone,Kernel,Memory Installed,Memory Swapfile,Number of processors,Cores per processor,Processor thread per core,Total processor cores,Processor model,Vendor,Product,Chassis Serial,Bios Version,Proc Max CState,nohz_full,isolcpus"
+      when: flat_info
+
+    - name: Flat host info
+      ansible.builtin.debug:
+        msg: "{{ ansible_hostname }},{{ ansible_distribution }},{{ ansible_distribution_release }},{{ ansible_distribution_version }},{{ ansible_python_version }},{{ ansible_date_time.tz }}({{ ansible_date_time.tz_offset }}),{{ ansible_kernel }},{{ (ansible_memtotal_mb / 1024) | round(1) }}GB,{{ (ansible_swaptotal_mb / 1024) | round(1) }}GB,{{ ansible_processor_count }},{{ ansible_processor_cores }},{{ ansible_processor_threads_per_core }},{{ ansible_processor_vcpus }},{{ ansible_processor[2] }},{{ ansible_virtualization_type if ansible_virtualization_role == 'guest' else ansible_chassis_vendor }},{{ ansible_virtualization_role if ansible_virtualization_role == 'guest' else ansible_product_name }},{{ ansible_chassis_serial }},{{ ansible_bios_version }},{{ ansible_cmdline['processor.max_cstate'] | default('not set') }},'{{ ansible_cmdline['nohz_full'] | default('not set') }}','{{ ansible_cmdline['isolcpus'] | default('not set') }}'"
+      when: flat_info
+...
