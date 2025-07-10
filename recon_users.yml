@@ -1,0 +1,40 @@
+---
+- name: Recon Users playbook
+  hosts: all
+  gather_facts: false
+
+  vars_prompt:
+    - name: search_for
+      prompt: "Search for a specific user or all?"
+      default: all
+      private: no
+
+  tasks:
+    - name: Gather info on all users with gid >= 1000
+      ansible.builtin.shell:
+        cmd: "awk -F: '$3 >= 1000 {print $3, $1}' /etc/passwd | sort"
+      register: list_of_users
+      when: search_for == "all"
+      changed_when: false
+
+    - name: List of all users with gid >= 1000
+      ansible.builtin.debug:
+        var: list_of_users.stdout_lines
+      when: 
+        - search_for == "all"
+        - list_of_users.stdout_lines
+
+    - name: Search for user {{ search_for }}
+      ansible.builtin.shell:
+        cmd: "grep {{ search_for }} /etc/passwd | awk -F: '{print $1, $3}'"
+      register: search_results
+      when: search_for != "all"
+      changed_when: false
+
+    - name: Search results
+      ansible.builtin.debug:
+        var: search_results.stdout
+      when: 
+        - search_for != "all"
+        - search_results.stdout
+...
