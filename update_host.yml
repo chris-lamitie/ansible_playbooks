@@ -1,0 +1,37 @@
+---
+# Simple playbook to update hosts, reboot flag true/false.
+# if you want the host(s) to reboot, add -e "reboot_required=true" to your ansible-playbook command
+- name: Basic package update
+  hosts: all
+  gather_facts: true
+
+  vars:
+    reboot_required: false  # reboot flag, will not reboot unless true.
+
+  tasks:
+    - name: Update all packages
+      ansible.builtin.package:
+        name: '*'
+        state: latest
+        update_cache: true
+      become: true
+      register: packages_update_results
+
+    - name: Run 'systemctl daemon-reload' to reload units
+      ansible.builtin.command:
+        cmd: systemctl daemon-reload
+      become: true
+
+    - name: Reboot the server if required
+      ansible.builtin.reboot:
+        msg: "Reboot initiated by Ansible"
+        pre_reboot_delay: 0
+        post_reboot_delay: 30
+        reboot_timeout: 600
+        test_command: whoami
+      when:
+        - packages_update_results.changed
+        - not packages_update_results.failed
+        - reboot_required
+      become: true
+...
